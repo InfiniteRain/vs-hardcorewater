@@ -23,12 +23,7 @@
 	"variantgroups": [
 		{
 			"code": "rock",
-			"states": [
-				"limestone",
-				"sandstone",
-				"basalt",
-				"granite"
-			]
+			"loadFromPropertiesCombine": [ "game:block/rock" ]
 		},
 		{
 			"code": "orientation",
