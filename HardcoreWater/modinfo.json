@@ -1,11 +1,11 @@
 {
   "type": "code",
-  "modid": "hardcorewater",
-  "name": "Hardcore Water : Transport Edition",
-  "authors": [ "Zach2039" ],
-  "contributors": [ "C4BR3R4" ],
-  "description": "Previously prevented buckets from placing source blocks, but now adds methods of water transportation for when source block moving is disabled in your worlds.",
-  "version": "1.3.5",
+  "modid": "hardcorewaterevolved",
+  "name": "Hardcore Water: Transport Edition (Evolved)",
+  "authors": [ "Zach2039", "InfiniteRain" ],
+  "contributors": [ "C4BR3R4", "InfiniteRain" ],
+  "description": "A backwards compatible, non-vibe-coded, fork of Hardcore Water: Transport Edition for 1.22.",
+  "version": "1.4.0",
   "dependencies": {
     "game": "*"
   }
