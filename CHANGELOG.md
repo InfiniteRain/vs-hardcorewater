@@ -1,3 +1,8 @@
+### v1.22.x-1.4.0
+
+- Updated to 1.22
+- Added aqueducts for every type of rock
+
 ### v1.20.x-1.3.5
 
 - Made wooden aqueduct recipe slightly cheaper

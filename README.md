@@ -1,5 +1,29 @@
-Hardcore Water : Transport Edition
+Hardcore Water: Transport Edition (Evolved)
 =================
+
+Fork Information
+----------------
+
+This is a fork of the original Hardcore Water: Transport Edition mod to 1.22, with the following features:
+
+* Backwards compatible with the old version of the mod, meaning that it's safe to upgrade existing worlds that use the mod to 1.22.
+* The stone aqueducts can now be crafted out of every type of rock:
+  * NEW: Andesite
+  * NEW: Chalk
+  * NEW: Chert
+  * NEW: Conglomerate
+  * NEW: Claystone
+  * NEW: Shale
+  * NEW: Peridotite
+  * NEW: Phyllite
+  * NEW: Slate
+  * NEW: Bauxite
+  * Limestone
+  * Sandstone
+  * Basalt
+  * Granite
+* Forked and upgraded fully by hand, with no involvment of AI. Even translations for the new aqueduct blocks were 
+sourced from a native speaker.
 
 Overview
 --------
