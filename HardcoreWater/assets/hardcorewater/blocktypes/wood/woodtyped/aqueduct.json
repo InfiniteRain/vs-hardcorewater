@@ -32,7 +32,8 @@
 			"states": [
 				"aged",
 				"veryaged",
-				"veryagedrotten"
+				"rotten",
+				"veryrotten"
 			],
 			"loadFromPropertiesCombine": [ "game:block/wood" ]
 		},
