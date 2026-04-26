@@ -29,6 +29,7 @@
 	"variantgroups": [
 		{
 			"code": "rock",
+			"states": ["suevite", "travertine"],
 			"loadFromPropertiesCombine": [ "game:block/rock" ]
 		},
 		{

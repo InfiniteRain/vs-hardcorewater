@@ -1,3 +1,8 @@
+### v1.22.x-1.4.1
+
+- Added suevite and travertine aqueducts
+- All the rock aqueducts are now craftable
+
 ### v1.22.x-1.4.0
 
 - Updated to 1.22

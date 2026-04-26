@@ -16,6 +16,8 @@
   "block-aqueduct-sandstone*": "Sandstone aqueduct section",
   "block-aqueduct-basalt*": "Basalt aqueduct section",
   "block-aqueduct-granite*": "Granite aqueduct section",
+  "block-aqueduct-suevite*": "Suevite aqueduct section",
+  "block-aqueduct-travertine*": "Travertine aqueduct section",
 
   "block-aqueduct-acacia*": "Acacia aqueduct section",
   "block-aqueduct-baldcypress*": "Bald cypress aqueduct section",
@@ -49,5 +51,7 @@
   "block-enclosedaqueduct-limestone*": "Limestone enclosed aqueduct section",
   "block-enclosedaqueduct-sandstone*": "Sandstone enclosed aqueduct section",
   "block-enclosedaqueduct-basalt*": "Basalt enclosed aqueduct section",
-  "block-enclosedaqueduct-granite*": "Granite enclosed aqueduct section"
+  "block-enclosedaqueduct-granite*": "Granite enclosed aqueduct section",
+  "block-enclosedaqueduct-suevite*": "Suevite enclosed aqueduct section",
+  "block-enclosedaqueduct-travertine*": "Travertine enclosed aqueduct section"
 }

@@ -8,8 +8,7 @@
     "L": {
       "type": "item",
       "code": "game:stonebrick-*",
-      "name": "rock",
-      "allowedVariants": [ "limestone", "granite", "sandstone", "basalt" ]
+      "name": "rock"
     }
   },
   "width": 3,
