@@ -22,6 +22,8 @@ This is a fork of the original Hardcore Water: Transport Edition mod to 1.22, wi
   * Sandstone
   * Basalt
   * Granite
+  * NEW: Suevite
+  * NEW: Travertine
 * Forked and upgraded fully by hand, with no involvment of AI. Even translations for the new aqueduct blocks were 
 sourced from a native speaker.
 
