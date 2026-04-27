@@ -1,43 +1,36 @@
-﻿using HardcoreWater.ModBlock;
-using System;
-using System.Text;
-using Vintagestory.API.Client;
+﻿using System;
+using HardcoreWater.ModBlock;
 using Vintagestory.API.Common;
-using Vintagestory.API.Common.Entities;
-using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
-using Vintagestory.API.Util;
 using Vintagestory.GameContent;
 
 namespace HardcoreWater.ModBlockEntity
 {
     public class BlockEntityAqueduct : BlockEntity
-	{
+    {
         private bool IsValidWaterSourceOrWaterFall(BlockPos blockPos, int minLevel = 7)
         {
-            bool isValid = IsValidWaterSource(blockPos, minLevel) || IsValidWaterFall(blockPos);
+            var isValid = IsValidWaterSource(blockPos, minLevel) || IsValidWaterFall(blockPos);
             return isValid;
         }
 
-		private bool IsValidWaterSource(BlockPos blockPos, int minLevel = 7)
+        private bool IsValidWaterSource(BlockPos blockPos, int minLevel = 7)
         {
-            Block block = this.Api.World.BlockAccessor.GetBlock(blockPos, BlockLayersAccess.Fluid);
-            if (block is BlockWaterflowing blockWaterflowing)
-            {
-                return (blockWaterflowing.LiquidLevel >= minLevel);
-            }
-            if (block is BlockWater blockWater)
-			{
-                return blockWater.LiquidLevel >= minLevel;
-			}
+            var block = Api.World.BlockAccessor.GetBlock(blockPos, BlockLayersAccess.Fluid);
 
-            return false;
-		}
+            return block switch
+            {
+                BlockWaterflowing blockWaterflowing => (blockWaterflowing.LiquidLevel >= minLevel),
+                BlockWater blockWater => blockWater.LiquidLevel >= minLevel,
+                _ => false,
+            };
+        }
 
         private bool IsValidWaterFall(BlockPos blockPos)
         {
-            Block block = this.Api.World.BlockAccessor.GetBlock(blockPos, BlockLayersAccess.Fluid);
+            var block = Api.World.BlockAccessor.GetBlock(blockPos, BlockLayersAccess.Fluid);
+
             if (block is BlockWaterfall blockWaterfall)
             {
                 return (blockWaterfall.LiquidLevel >= 6 && blockWaterfall.Variant["flow"] == "d");
@@ -46,276 +39,352 @@ namespace HardcoreWater.ModBlockEntity
             return false;
         }
 
-        private bool IsValidFilledAqueduct(BlockPos blockPos, int minLevel = 7)
+        private bool IsValidFilledAqueduct(BlockPos blockPos)
         {
-            
-            if (this.Api.World.BlockAccessor.GetBlock(blockPos) is IAqueduct aqueduct)
+            if (Api.World.BlockAccessor.GetBlock(blockPos) is not IAqueduct aqueduct)
             {
-                if (this.Api.World.BlockAccessor.GetBlockEntity<BlockEntityAqueduct>(blockPos) is BlockEntityAqueduct adjacentAqueduct)
-                {
-                    // To be a valid source aqueduct for this one, the adjacent aqueduct must be oriented in the same direction OR not enclosed
-                    bool correctOrientation = aqueduct.Orientation == this.blockAqueduct.Orientation || !aqueduct.IsEnclosed;
-                    bool notSourcingThis = adjacentAqueduct.WaterSourcePos != this.WaterSourcePos;
-                    bool notSourcingEachOther = (this.WaterSourcePos == null || adjacentAqueduct.WaterSourcePos == null) || !(adjacentAqueduct.WaterSourcePos == this.Pos && this.WaterSourcePos == adjacentAqueduct.Pos);
-                    //bool hasMinWater = adjacentAqueduct.WaterLevel >= minLevel || adjacentAqueduct.Block.LiquidLevel >= minLevel;
-                    bool hasMinWater = adjacentAqueduct.HasWaterSource;
-                    bool isValid = correctOrientation && notSourcingThis && notSourcingEachOther && hasMinWater;
-                    return isValid;
-                }
-                else
-                {
-                    // Sometimes block entity will return null while block is aqueduct; assume valid source
-                    return true;
-                }
+                return false;
             }
-            
-            return false;
-		}
+
+            if (
+                Api.World.BlockAccessor.GetBlockEntity<BlockEntityAqueduct>(blockPos)
+                is not { } adjacentAqueduct
+            )
+            {
+                // Sometimes block entity will return null while block is aqueduct; assume valid source
+                return true;
+            }
+
+            // To be a valid source aqueduct for this one, the adjacent aqueduct must be oriented in the same direction OR not enclosed
+            var correctOrientation =
+                aqueduct.Orientation == _blockAqueduct.Orientation || !aqueduct.IsEnclosed;
+            var notSourcingThis = adjacentAqueduct.WaterSourcePos != WaterSourcePos;
+            var notSourcingEachOther =
+                (WaterSourcePos == null || adjacentAqueduct.WaterSourcePos == null)
+                || !(
+                    adjacentAqueduct.WaterSourcePos == Pos && WaterSourcePos == adjacentAqueduct.Pos
+                );
+            var hasMinWater = adjacentAqueduct.HasWaterSource;
+            var isValid =
+                correctOrientation && notSourcingThis && notSourcingEachOther && hasMinWater;
+
+            return isValid;
+        }
 
         private bool HasInvalidSourceDependency(BlockPos posA, BlockPos posB)
         {
             // Check for case that aqueduct is valid source for two adjacent aqueducts, invalidate if so
-            if (this.Api.World.BlockAccessor.GetBlockEntity(posA) is BlockEntityAqueduct entityAqueductA && this.Api.World.BlockAccessor.GetBlockEntity(posB) is BlockEntityAqueduct entityAqueductB)
+            if (
+                Api.World.BlockAccessor.GetBlockEntity(posA)
+                    is not BlockEntityAqueduct entityAqueductA
+                || Api.World.BlockAccessor.GetBlockEntity(posB)
+                    is not BlockEntityAqueduct entityAqueductB
+            )
             {
-                bool sourcesBothAdjacent = (entityAqueductA.WaterSourcePos == this.Pos && entityAqueductB.WaterSourcePos == this.Pos);
-                bool sourcedFromEitherAdjacent = (this.WaterSourcePos == entityAqueductA.Pos || this.WaterSourcePos == entityAqueductB.Pos);
-                if (sourcesBothAdjacent && sourcedFromEitherAdjacent)
-                {
-                    return true;
-                }
+                return false;
             }
 
-            return false;
+            var sourcesBothAdjacent =
+                entityAqueductA.WaterSourcePos == Pos && entityAqueductB.WaterSourcePos == Pos;
+            var sourcedFromEitherAdjacent =
+                WaterSourcePos == entityAqueductA.Pos || WaterSourcePos == entityAqueductB.Pos;
+
+            return sourcesBothAdjacent && sourcedFromEitherAdjacent;
         }
 
         private bool DoesBlockBelowPosHaveUpSolidFaceOrAqueduct(BlockPos blockPos)
         {
-            Block mostSolidBlock = this.Api.World.BlockAccessor.GetMostSolidBlock(blockPos.DownCopy());
+            var mostSolidBlock = Api.World.BlockAccessor.GetMostSolidBlock(blockPos.DownCopy());
 
-            if (mostSolidBlock is BlockAqueduct blockAqueduct) return true;
+            if (mostSolidBlock is BlockAqueduct)
+            {
+                return true;
+            }
 
-            bool isSolidTop = (double)mostSolidBlock.GetLiquidBarrierHeightOnSide(BlockFacing.UP, blockPos.DownCopy()) >= 1.0;
+            var isSolidTop =
+                mostSolidBlock.GetLiquidBarrierHeightOnSide(BlockFacing.UP, blockPos.DownCopy())
+                >= 1.0;
 
             return isSolidTop;
         }
 
-		private void onServerTick1s(float dt)
-		{
-			BlockPos[] blockPosFB = new BlockPos[2];
-
-            if (this.blockAqueduct == null)
+        private void OnServerTick1S(float dt)
+        {
+            if (_blockAqueduct == null)
                 return;
 
-			// Scan blocks front and back of the aqueduct
-			if (BlockFacing.FromFirstLetter(this.blockAqueduct.Orientation) == BlockFacing.NORTH)
-            {
-				blockPosFB[0] = this.Pos.NorthCopy();
-				blockPosFB[1] = this.Pos.SouthCopy();
-			}
-            else
-            {
-				blockPosFB[0] = this.Pos.WestCopy();
-				blockPosFB[1] = this.Pos.EastCopy();
-			}
+            var blockPosFb =
+                BlockFacing.FromFirstLetter(_blockAqueduct.Orientation) == BlockFacing.NORTH
+                    ? new[] { Pos.NorthCopy(), Pos.SouthCopy() }
+                    : new[] { Pos.WestCopy(), Pos.EastCopy() };
 
-			// Check validity of previous source location, if present
-			//if (this.WaterSourcePos != null)
-            if (this.HasWaterSource)
-			{
-				bool hasSource = false;
-                bool unloadedWaterSource = this.Api.World.BlockAccessor.GetChunkAtBlockPos(this.WaterSourcePos) == null;
-                if (IsValidWaterSource(this.Pos, 7) || unloadedWaterSource)
+            // Check validity of previous source location, if present
+            if (HasWaterSource)
+            {
+                var hasSource = false;
+                var unloadedWaterSource =
+                    Api.World.BlockAccessor.GetChunkAtBlockPos(WaterSourcePos) == null;
+
+                if (IsValidWaterSource(Pos) || unloadedWaterSource)
                 {
                     hasSource = true; // Contains source block or source block is in unloaded chunk
                 }
-                else if (IsValidWaterSource(this.WaterSourcePos) && DoesBlockBelowPosHaveUpSolidFaceOrAqueduct(this.WaterSourcePos) || unloadedWaterSource)
+                else if (
+                    IsValidWaterSource(WaterSourcePos)
+                    && DoesBlockBelowPosHaveUpSolidFaceOrAqueduct(WaterSourcePos)
+                )
                 {
                     hasSource = true; // Connected to source block or source block is in unloaded chunk
                 }
-                else if ((IsValidWaterFall(this.WaterSourcePos) && DoesBlockBelowPosHaveUpSolidFaceOrAqueduct(this.WaterSourcePos)) || unloadedWaterSource)
-				{
+                else if (
+                    IsValidWaterFall(WaterSourcePos)
+                    && DoesBlockBelowPosHaveUpSolidFaceOrAqueduct(WaterSourcePos)
+                )
+                {
                     hasSource = true; // Connected to waterfall or source block is in unloaded chunk
                 }
-                else if ((IsValidWaterSource(this.WaterSourcePos, 5) && IsValidWaterSourceOrWaterFall(this.WaterSourcePos.UpCopy(), 5) && DoesBlockBelowPosHaveUpSolidFaceOrAqueduct(this.WaterSourcePos)) || unloadedWaterSource)
+                else if (
+                    IsValidWaterSource(WaterSourcePos, 5)
+                    && IsValidWaterSourceOrWaterFall(WaterSourcePos.UpCopy(), 5)
+                    && DoesBlockBelowPosHaveUpSolidFaceOrAqueduct(WaterSourcePos)
+                )
                 {
                     hasSource = true; // Connected to waterfall adjacent with above flowing water or source block is in unloaded chunk
                 }
-                else if ((IsValidWaterSource(this.Pos, 6) && IsValidWaterSourceOrWaterFall(this.WaterSourcePos, 6) && (this.Pos.Y == this.WaterSourcePos.Y-1)) || unloadedWaterSource)
+                else if (
+                    IsValidWaterSource(Pos, 6)
+                    && IsValidWaterSourceOrWaterFall(WaterSourcePos, 6)
+                    && Pos.Y == WaterSourcePos.Y - 1
+                )
                 {
                     hasSource = true; // Connected to waterfall above or source block is in unloaded chunk
                 }
-                else if (IsValidFilledAqueduct(this.WaterSourcePos, 6) || unloadedWaterSource)
-				{
+                else if (IsValidFilledAqueduct(WaterSourcePos))
+                {
                     hasSource = true; // Connected to aqueduct that isn't using this one as a source and has valid water source or source block is in unloaded chunk
                 }
 
-                if (!hasSource || HasInvalidSourceDependency(blockPosFB[0], blockPosFB[1]))
-				{
-                    this.WaterSourceReacquireTimeout = 4;
-                    this.HasWaterSource = false;
-                    this.WaterSourcePos = null;
-                    this.MarkDirty(true);
-				}
-			}
-			else
-			{
-                if (WaterSourceReacquireTimeout > 0)
+                if (hasSource && !HasInvalidSourceDependency(blockPosFb[0], blockPosFb[1]))
                 {
-                    --WaterSourceReacquireTimeout;
-                    this.WaterLevel = Math.Max(0, this.WaterLevel - 1);
-                    this.Api.World.BlockAccessor.TriggerNeighbourBlockUpdate(this.Pos);
-                    this.MarkDirty(true);
                     return;
                 }
 
-                bool hasSource = false;
-                BlockPos upwardPos = this.Pos.UpCopy();
-                if (IsValidWaterSource(this.Pos, 7))
+                _waterSourceReacquireTimeout = 4;
+                HasWaterSource = false;
+                WaterSourcePos = null;
+            }
+            else
+            {
+                if (_waterSourceReacquireTimeout > 0)
                 {
-                    this.WaterSourcePos = this.Pos;
-                    this.WaterLevel = 7;
+                    --_waterSourceReacquireTimeout;
+                    WaterLevel = Math.Max(0, WaterLevel - 1);
+                    Api.World.BlockAccessor.TriggerNeighbourBlockUpdate(Pos);
+                    MarkDirty(true);
+                    return;
+                }
+
+                var hasSource = false;
+                var upwardPos = Pos.UpCopy();
+
+                if (IsValidWaterSource(Pos))
+                {
+                    WaterSourcePos = Pos;
+                    WaterLevel = 7;
                     hasSource = true;
-                    this.HasWaterSource = true;
+                    HasWaterSource = true;
                     // Connected to source block in aqueduct
                 }
                 else if (IsValidWaterSource(upwardPos))
                 {
-                    this.WaterSourcePos = upwardPos;
-                    this.WaterLevel = 6;
+                    WaterSourcePos = upwardPos;
+                    WaterLevel = 6;
                     hasSource = true;
-                    this.HasWaterSource = true;
+                    HasWaterSource = true;
                     // Connected to source block above
                 }
                 else if (IsValidWaterSourceOrWaterFall(upwardPos, 6))
                 {
-                    this.WaterSourcePos = upwardPos;
-                    this.WaterLevel = 6;
+                    WaterSourcePos = upwardPos;
+                    WaterLevel = 6;
                     hasSource = true;
-                    this.HasWaterSource = true;
+                    HasWaterSource = true;
                     // Connected to waterfall or water above
                 }
-                else if (IsValidFilledAqueduct(upwardPos, 6))
+                else if (IsValidFilledAqueduct(upwardPos))
                 {
-                    this.WaterSourcePos = upwardPos;
-                    this.WaterLevel = 6;
+                    WaterSourcePos = upwardPos;
+                    WaterLevel = 6;
                     hasSource = true;
-                    this.HasWaterSource = true;
+                    HasWaterSource = true;
                     // Connected to aqueduct above
                 }
 
                 if (!hasSource) // Check ends if source above
                 {
-                    foreach (BlockPos endPos in blockPosFB)
+                    foreach (BlockPos endPos in blockPosFb)
                     {
                         if (IsValidWaterSource(endPos))
                         {
-                            this.WaterSourcePos = endPos;
-                            this.WaterLevel = 6;
+                            WaterSourcePos = endPos;
+                            WaterLevel = 6;
                             hasSource = true;
-                            this.HasWaterSource = true;
+                            HasWaterSource = true;
                             break; // Connected to source block adjacent
                         }
-                        else if (IsValidWaterFall(endPos) && DoesBlockBelowPosHaveUpSolidFaceOrAqueduct(endPos))
+
+                        if (
+                            IsValidWaterFall(endPos)
+                            && DoesBlockBelowPosHaveUpSolidFaceOrAqueduct(endPos)
+                        )
                         {
-                            this.WaterSourcePos = endPos;
-                            this.WaterLevel = 6;
+                            WaterSourcePos = endPos;
+                            WaterLevel = 6;
                             hasSource = true;
-                            this.HasWaterSource = true;
+                            HasWaterSource = true;
                             break; // Connected to waterfall adjacent
                         }
-                        else if (IsValidWaterSource(endPos, 5) && IsValidWaterSourceOrWaterFall(endPos.UpCopy(), 5) && DoesBlockBelowPosHaveUpSolidFaceOrAqueduct(endPos))
+
+                        if (
+                            IsValidWaterSource(endPos, 5)
+                            && IsValidWaterSourceOrWaterFall(endPos.UpCopy(), 5)
+                            && DoesBlockBelowPosHaveUpSolidFaceOrAqueduct(endPos)
+                        )
                         {
-                            this.WaterSourcePos = endPos;
-                            this.WaterLevel = 6;
+                            WaterSourcePos = endPos;
+                            WaterLevel = 6;
                             hasSource = true;
-                            this.HasWaterSource = true;
+                            HasWaterSource = true;
                             break; // Connected to waterfall adjacent with above flowing water
                         }
-                        else if (IsValidFilledAqueduct(endPos, 6))
+
+                        if (IsValidFilledAqueduct(endPos))
                         {
-                            this.WaterSourcePos = endPos;
-                            this.WaterLevel = 6;
+                            WaterSourcePos = endPos;
+                            WaterLevel = 6;
                             hasSource = true;
-                            this.HasWaterSource = true;
+                            HasWaterSource = true;
                             break; // Connected to aqueduct that isn't using this one as a source and has valid water source adjacent
                         }
                     }
                 }
-                
 
-				if (hasSource)
-				{
+                if (hasSource)
+                {
                     // Handle fresh, salt, and boiling water separately, lest we desalinate or something else weird
-                    Block ourBlockFluid = this.Api.World.BlockAccessor.GetBlock(this.Pos, BlockLayersAccess.Fluid);
-                    Block liquidSourceBlock;
+                    var ourBlockFluid = Api.World.BlockAccessor.GetBlock(
+                        Pos,
+                        BlockLayersAccess.Fluid
+                    );
+                    var sourceBlockFluid = Api.World.BlockAccessor.GetBlock(
+                        WaterSourcePos,
+                        BlockLayersAccess.Fluid
+                    );
                     Block liquidBlockToSet;
-                    if (ourBlockFluid != null && ourBlockFluid.Code.BeginsWith("game", "salt"))
+
+                    if (sourceBlockFluid.Code.BeginsWith("game", "salt"))
                     {
-                        liquidSourceBlock = this.Api.World.GetBlock(new AssetLocation("game:saltwater-still-7"));
-                        liquidBlockToSet = this.Api.World.GetBlock(new AssetLocation("game:saltwater-still-" + Math.Min(7, this.WaterLevel)));
+                        liquidBlockToSet = Api.World.GetBlock(
+                            new AssetLocation("game:saltwater-still-" + Math.Min(7, WaterLevel))
+                        );
                     }
-                    else if (ourBlockFluid != null && ourBlockFluid.Code.BeginsWith("game", "boiling"))
+                    else if (sourceBlockFluid.Code.BeginsWith("game", "boiling"))
                     {
-                        liquidSourceBlock = this.Api.World.GetBlock(new AssetLocation("game:boilingwater-still-7"));
-                        liquidBlockToSet = this.Api.World.GetBlock(new AssetLocation("game:boilingwater-still-" + Math.Min(7, this.WaterLevel)));
+                        liquidBlockToSet = Api.World.GetBlock(
+                            new AssetLocation("game:boilingwater-still-" + Math.Min(7, WaterLevel))
+                        );
+                    }
+                    else if (
+                        sourceBlockFluid.Code.BeginsWith("game", "rapidwater")
+                        && _canTransportRapids
+                    )
+                    {
+                        liquidBlockToSet = Api.World.GetBlock(
+                            new AssetLocation("game:rapidwater-still-" + Math.Min(7, WaterLevel))
+                        );
                     }
                     else
                     {
-                        liquidSourceBlock = this.Api.World.GetBlock(new AssetLocation("game:water-still-7"));
-                        liquidBlockToSet = this.Api.World.GetBlock(new AssetLocation("game:water-still-" + Math.Min(7, this.WaterLevel)));
+                        liquidBlockToSet = Api.World.GetBlock(
+                            new AssetLocation("game:water-still-" + Math.Min(7, WaterLevel))
+                        );
                     }
 
-                    bool notIced = !ourBlockFluid.Code.Path.Contains("ice");
-                    if (notIced && ourBlockFluid.LiquidLevel < this.WaterLevel && !HasInvalidSourceDependency(blockPosFB[0], blockPosFB[1]))
+                    var iced = ourBlockFluid.Code.Path.Contains("ice");
+
+                    if (
+                        iced
+                        || ourBlockFluid.LiquidLevel >= WaterLevel
+                        || HasInvalidSourceDependency(blockPosFb[0], blockPosFb[1])
+                    )
                     {
-                        this.Api.World.BlockAccessor.SetBlock(liquidBlockToSet.BlockId, this.Pos, BlockLayersAccess.Fluid);
-                        this.Api.World.BlockAccessor.TriggerNeighbourBlockUpdate(this.Pos);
-                        this.MarkDirty(true);
+                        return;
                     }
+
+                    Api.World.BlockAccessor.SetBlock(
+                        liquidBlockToSet!.BlockId,
+                        Pos,
+                        BlockLayersAccess.Fluid
+                    );
                 }
-				else
-				{
-                    this.WaterLevel = Math.Max(0, this.WaterLevel - 1);
-                    this.Api.World.BlockAccessor.TriggerNeighbourBlockUpdate(this.Pos);
-                    this.MarkDirty(true);
+                else
+                {
+                    WaterLevel = Math.Max(0, WaterLevel - 1);
                 }
+
+                Api.World.BlockAccessor.TriggerNeighbourBlockUpdate(Pos);
             }
-		}
 
-		public override void Initialize(ICoreAPI api)
-		{
-			base.Initialize(api);
-			this.blockAqueduct = (base.Block as IAqueduct);
-			this.RegisterGameTickListener(new Action<float>(this.onServerTick1s), (int) Math.Round(HardcoreWaterConfig.Loaded.AqueductUpdateFrequencySeconds * 1000), 0);
-		}
-
-		public override void ToTreeAttributes(ITreeAttribute tree)
-		{
-			base.ToTreeAttributes(tree);
-			tree.SetInt("WaterLevel", this.WaterLevel);
-            tree.SetInt("WaterSourceReacquireTimeout", this.WaterSourceReacquireTimeout);
-            tree.SetBool("HasWaterSource", this.HasWaterSource);
-			if (this.HasWaterSource)
-				tree.SetBlockPos("WaterSourcePos", this.WaterSourcePos);
-		}
-
-		public override void FromTreeAttributes(ITreeAttribute tree, IWorldAccessor worldAccessForResolve)
-		{
-			base.FromTreeAttributes(tree, worldAccessForResolve);
-			this.WaterLevel = tree.GetInt("WaterLevel");
-            this.WaterSourceReacquireTimeout = tree.GetInt("WaterSourceReacquireTimeout", 0);
-            this.HasWaterSource = tree.GetBool("HasWaterSource", true);
-            this.WaterSourcePos = tree.GetBlockPos("WaterSourcePos", null);
+            MarkDirty(true);
         }
 
-		private IAqueduct blockAqueduct;
+        public override void Initialize(ICoreAPI api)
+        {
+            base.Initialize(api);
+            _blockAqueduct = (Block as IAqueduct);
+            _canTransportRapids = HardcoreWaterConfig.Loaded.CanTransportRapids;
+            RegisterGameTickListener(
+                OnServerTick1S,
+                (int)Math.Round(HardcoreWaterConfig.Loaded.AqueductUpdateFrequencySeconds * 1000)
+            );
+        }
 
-		public int WaterLevel { get; set; } = 0;
+        public override void ToTreeAttributes(ITreeAttribute tree)
+        {
+            base.ToTreeAttributes(tree);
 
-		public BlockPos WaterSourcePos { get; set; } = null;
+            tree.SetInt("WaterLevel", WaterLevel);
+            tree.SetInt("WaterSourceReacquireTimeout", _waterSourceReacquireTimeout);
+            tree.SetBool("HasWaterSource", HasWaterSource);
 
-        public bool HasWaterSource { get; set; } = false;
+            if (HasWaterSource)
+            {
+                tree.SetBlockPos("WaterSourcePos", WaterSourcePos);
+            }
+        }
 
-        private int WaterSourceReacquireTimeout = 0;
-	}
+        public override void FromTreeAttributes(
+            ITreeAttribute tree,
+            IWorldAccessor worldAccessForResolve
+        )
+        {
+            base.FromTreeAttributes(tree, worldAccessForResolve);
+            WaterLevel = tree.GetInt("WaterLevel");
+            _waterSourceReacquireTimeout = tree.GetInt("WaterSourceReacquireTimeout");
+            HasWaterSource = tree.GetBool("HasWaterSource", true);
+            WaterSourcePos = tree.GetBlockPos("WaterSourcePos");
+        }
+
+        private IAqueduct _blockAqueduct;
+
+        public int WaterLevel { get; private set; }
+
+        public BlockPos WaterSourcePos { get; private set; }
+
+        public bool HasWaterSource { get; private set; }
+
+        private int _waterSourceReacquireTimeout;
+
+        private bool _canTransportRapids;
+    }
 }

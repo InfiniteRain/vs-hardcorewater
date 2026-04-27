@@ -7,6 +7,7 @@ Fork Information
 This is a fork of the original Hardcore Water: Transport Edition mod to 1.22, with the following features:
 
 * Backwards compatible with the old version of the mod, meaning that it's safe to upgrade existing worlds that use the mod to 1.22.
+* Supports transporting rapids (enabled via `CanTransportRapids` config option).
 * The stone aqueducts can now be crafted out of every type of rock:
   * NEW: Andesite
   * NEW: Chalk
@@ -46,6 +47,7 @@ Config Settings (`VintageStoryData/ModConfig/HardcoreWater.json`)
 --------
 
 * `AqueductUpdateFrequencySeconds`: Sets how often aqueducts are allowed to update, in seconds; defaults to `0.75`.
+* `CanTransportRapids`: Enables transportation of rapids via aqueducts; defaults to `false`.
 
 
 Future Plans

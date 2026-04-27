@@ -1,30 +1,28 @@
-﻿using Vintagestory.API.Client;
-using Vintagestory.API.Common;
-using Vintagestory.API.Config;
-using Vintagestory.API.Server;
-
-using HardcoreWater.ModNetwork;
+﻿using System.Reflection;
 using HardcoreWater.ModBlock;
 using HardcoreWater.ModBlockEntity;
+using HardcoreWater.ModNetwork;
+using HardcoreWater.ModPatches;
 using HarmonyLib;
-using AdditionalSpawnConstraints.ModPatches;
-using Vintagestory.GameContent;
-using System;
+using Vintagestory.API.Client;
+using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
+using Vintagestory.API.Server;
+using Vintagestory.GameContent;
 
 namespace HardcoreWater
 {
     public class HardcoreWaterModSystem : ModSystem
     {
-        private IServerNetworkChannel serverChannel;
-        private ICoreAPI api;
-        public Harmony harmonyInst;
+        private IServerNetworkChannel _serverChannel;
+        private ICoreAPI _api;
+        private Harmony _harmonyInst;
 
         public override void StartPre(ICoreAPI api)
         {
-            string cfgFileName = "HardcoreWater.json";
+            const string cfgFileName = "HardcoreWater.json";
 
-            try 
+            try
             {
                 HardcoreWaterConfig cfgFromDisk;
                 if ((cfgFromDisk = api.LoadModConfig<HardcoreWaterConfig>(cfgFileName)) == null)
@@ -35,8 +33,8 @@ namespace HardcoreWater
                 {
                     HardcoreWaterConfig.Loaded = cfgFromDisk;
                 }
-            } 
-            catch 
+            }
+            catch
             {
                 api.StoreModConfig(HardcoreWaterConfig.Loaded, cfgFileName);
             }
@@ -46,7 +44,7 @@ namespace HardcoreWater
 
         public override void Start(ICoreAPI api)
         {
-            this.api = api;
+            _api = api;
             base.Start(api);
 
             api.RegisterBlockClass("BlockAqueduct", typeof(BlockAqueduct));
@@ -59,30 +57,34 @@ namespace HardcoreWater
         private void OnPlayerJoin(IServerPlayer player)
         {
             // Send connecting players config settings
-            this.serverChannel.SendPacket(
-                new SyncConfigClientPacket {
-                    AqueductUpdateFrequencySeconds = HardcoreWaterConfig.Loaded.AqueductUpdateFrequencySeconds
-                }, player);
+            _serverChannel.SendPacket(
+                new SyncConfigClientPacket
+                {
+                    AqueductUpdateFrequencySeconds = HardcoreWaterConfig
+                        .Loaded
+                        .AqueductUpdateFrequencySeconds,
+                },
+                player
+            );
         }
 
         public override void StartServerSide(ICoreServerAPI sapi)
         {
-            sapi.Event.PlayerJoin += this.OnPlayerJoin; 
-            
-            if (!Harmony.HasAnyPatches(Mod.Info.ModID)) {
-				harmonyInst = new Harmony(Mod.Info.ModID);
+            sapi.Event.PlayerJoin += OnPlayerJoin;
 
-				PatchBlockBehaviorFiniteSpreadingLiquidTryLoweringLiquidLevel(sapi, harmonyInst);
+            if (!Harmony.HasAnyPatches(Mod.Info.ModID))
+            {
+                _harmonyInst = new Harmony(Mod.Info.ModID);
 
-                //PatchBlockBehaviorFiniteSpreadingLiquidCanSpreadIntoBlock(sapi, harmonyInst);
-
-                PatchBlockBehaviorFiniteSpreadingLiquidFindDownwardPaths(sapi, harmonyInst);
+                PatchFindDownwardPaths(sapi, _harmonyInst);
+                PatchTryLoweringLiquidLevel(sapi, _harmonyInst);
             }
 
             // Create server channel for config data sync
-            this.serverChannel = sapi.Network.RegisterChannel("hardcorewater")
+            _serverChannel = sapi
+                .Network.RegisterChannel("hardcorewater")
                 .RegisterMessageType<SyncConfigClientPacket>()
-                .SetMessageHandler<SyncConfigClientPacket>((player, packet) => {});
+                .SetMessageHandler<SyncConfigClientPacket>((_, _) => { });
 
             base.StartServerSide(sapi);
         }
@@ -92,54 +94,58 @@ namespace HardcoreWater
             // Sync config settings with clients
             capi.Network.RegisterChannel("hardcorewater")
                 .RegisterMessageType<SyncConfigClientPacket>()
-                .SetMessageHandler<SyncConfigClientPacket>(p => {
-                    this.Mod.Logger.Event("Received config settings from server");
-                    HardcoreWaterConfig.Loaded.AqueductUpdateFrequencySeconds = p.AqueductUpdateFrequencySeconds;
+                .SetMessageHandler<SyncConfigClientPacket>(p =>
+                {
+                    Mod.Logger.Event("Received config settings from server");
+                    HardcoreWaterConfig.Loaded.AqueductUpdateFrequencySeconds =
+                        p.AqueductUpdateFrequencySeconds;
                 });
         }
-        
+
         public override void Dispose()
         {
-            if (this.api is ICoreServerAPI sapi)
+            if (_api is ICoreServerAPI sapi)
             {
-                sapi.Event.PlayerJoin -= this.OnPlayerJoin;
+                sapi.Event.PlayerJoin -= OnPlayerJoin;
             }
         }
 
-        internal void PatchBlockBehaviorFiniteSpreadingLiquidTryLoweringLiquidLevel(ICoreServerAPI sapi, Harmony harmony)
-		{
-			var original = typeof(BlockBehaviorFiniteSpreadingLiquid).GetMethod("TryLoweringLiquidLevel", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-			var prefix = typeof(PatchBlockBehaviorFiniteSpreadingLiquid).GetMethod("PrefixTryLoweringLiquidLevel", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-				
-			harmony.Patch(original, new HarmonyMethod(prefix), null);			
-
-			sapi.Logger.Notification("Applied patch to VintageStory's BlockBehaviorFiniteSpreadingLiquid.TryLoweringLiquidLevel from Hardcore Water!");		
-		}
-
-        /*
-        internal void PatchBlockBehaviorFiniteSpreadingLiquidCanSpreadIntoBlock(ICoreServerAPI sapi, Harmony harmony)
+        private void PatchFindDownwardPaths(ICoreServerAPI sapi, Harmony harmony)
         {
-            var original = typeof(BlockBehaviorFiniteSpreadingLiquid).GetMethod("CanSpreadIntoBlock", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance, new Type[] {
-                    typeof(Block),  typeof(Block), typeof(BlockPos), typeof(BlockPos), typeof(BlockFacing), typeof(IWorldAccessor)             
-                });
-            var prefix = typeof(PatchBlockBehaviorFiniteSpreadingLiquid).GetMethod("PrefixCanSpreadIntoBlock", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-
-            harmony.Patch(original, new HarmonyMethod(prefix), null);
-
-            sapi.Logger.Notification("Applied patch to VintageStory's BlockBehaviorFiniteSpreadingLiquid.CanSpreadIntoBlock from Hardcore Water!");
-        }
-        */
-
-        internal void PatchBlockBehaviorFiniteSpreadingLiquidFindDownwardPaths(ICoreServerAPI sapi, Harmony harmony)
-        {
-            var original = typeof(BlockBehaviorFiniteSpreadingLiquid).GetMethod("FindDownwardPaths", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance, new Type[] {
-                    typeof(IWorldAccessor),  typeof(BlockPos), typeof(Block)
-                });
-            var postfix = typeof(PatchBlockBehaviorFiniteSpreadingLiquid).GetMethod("PostfixFindDownwardPaths", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            var original = typeof(BlockBehaviorFiniteSpreadingLiquid).GetMethod(
+                "FindDownwardPaths",
+                BindingFlags.Public | BindingFlags.Instance,
+                [typeof(IWorldAccessor), typeof(BlockPos), typeof(Block)]
+            );
+            var postfix = typeof(PatchBlockBehaviorFiniteSpreadingLiquid).GetMethod(
+                "PostfixFindDownwardPaths",
+                BindingFlags.NonPublic | BindingFlags.Static
+            );
 
             harmony.Patch(original, null, new HarmonyMethod(postfix));
 
-            sapi.Logger.Notification("Applied patch to VintageStory's BlockBehaviorFiniteSpreadingLiquid.FindDownwardPaths from Hardcore Water!");
+            sapi.Logger.Notification(
+                "Applied patch to VintageStory's BlockBehaviorFiniteSpreadingLiquid.FindDownwardPaths from Hardcore Water!"
+            );
+        }
+
+        private void PatchTryLoweringLiquidLevel(ICoreServerAPI sapi, Harmony harmony)
+        {
+            var original = typeof(BlockBehaviorFiniteSpreadingLiquid).GetMethod(
+                "TryLoweringLiquidLevel",
+                BindingFlags.NonPublic | BindingFlags.Instance,
+                [typeof(Block), typeof(IWorldAccessor), typeof(BlockPos)]
+            );
+            var prefix = typeof(PatchBlockBehaviorFiniteSpreadingLiquid).GetMethod(
+                "PrefixTryLoweringLiquidLevel",
+                BindingFlags.NonPublic | BindingFlags.Static
+            );
+
+            harmony.Patch(original, new HarmonyMethod(prefix));
+
+            sapi.Logger.Notification(
+                "Applied patch to VintageStory's BlockBehaviorFiniteSpreadingLiquid.TryLoweringLiquidLevel from Hardcore Water!"
+            );
         }
     }
 }

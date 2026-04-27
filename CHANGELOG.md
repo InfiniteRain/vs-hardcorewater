@@ -1,3 +1,7 @@
+### v1.22.x-1.5.0
+
+- Added support for transporting rapids (should be enabled via `CanTransportRapids` config option).
+
 ### v1.22.x-1.4.1
 
 - Added suevite and travertine aqueducts
