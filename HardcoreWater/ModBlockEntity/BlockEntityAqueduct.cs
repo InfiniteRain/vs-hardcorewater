@@ -318,6 +318,7 @@ namespace HardcoreWater.ModBlockEntity
                         || HasInvalidSourceDependency(blockPosFb[0], blockPosFb[1])
                     )
                     {
+                        MarkDirty(true);
                         return;
                     }
 

@@ -1,3 +1,7 @@
+### v1.22.x-1.5.1
+
+- Minor tweak to aqueduct block update detection logic
+
 ### v1.22.x-1.5.0
 
 - Added support for transporting rapids (should be enabled via `CanTransportRapids` config option).

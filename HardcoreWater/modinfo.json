@@ -5,7 +5,7 @@
   "authors": [ "Zach2039", "InfiniteRain" ],
   "contributors": [ "C4BR3R4", "InfiniteRain" ],
   "description": "A backwards compatible, non-vibe-coded, fork of Hardcore Water: Transport Edition for 1.22.",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "dependencies": {
     "game": "*"
   }
